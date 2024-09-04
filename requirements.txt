@@ -1,0 +1,8 @@
+flask
+python-dotenv
+weaviate-client
+openai
+aiohttp
+anthropic
+flask[async]
+anthropic

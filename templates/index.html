@@ -8,20 +8,25 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <div class="logo">AI Chat</div>
-            <div id="status-indicator">
-                <div id="status-bulb"></div>
-            </div>
-        </header>
-        <div id="chat-container" class="chat-container"></div>
-        <div class="input-wrapper">
-            <div id="follow-up-container" class="follow-up-container"></div>
+    <div class="main-container">
+        <div class="chat-panel">
+            <header class="chat-header">
+                <div class="logo">AI Chat</div>
+                <div id="status-indicator">
+                    <div id="status-bulb"></div>
+                </div>
+            </header>
+            <div id="chat-container"></div>
             <div class="input-area">
-                <input type="text" id="user-input" placeholder="Message ChatGPT...">
+                <div id="follow-up-container"></div>
+                <input type="text" id="user-input" placeholder="Type your message...">
                 <button id="send-button">Send</button>
             </div>
+        </div>
+        <div id="resizer"></div>
+        <div class="pdf-panel">
+            <button id="close-pdf">Close</button>
+            <div id="viewer-container"></div>
         </div>
     </div>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>

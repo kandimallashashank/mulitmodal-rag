@@ -1,0 +1,237 @@
+Analyze the following image thoroughly and extract all relevant information from any tables present:
+Image: {image_base64}
+
+0. Table Structure and Complete Data Output
+When provided with an image containing a table:
+
+Immediately extract and output the COMPLETE table structure and data in a text-based format (e.g., markdown, ASCII art, or structured text).
+Include ALL headers (column and row), subheaders, and the ENTIRE layout of the table.
+Extract and present ALL cell contents. DO NOT use placeholder text or omit any data.
+Clearly indicate any merged cells, multi-level headers, or other structural elements.
+Provide this complete representation before proceeding with any further analysis or data extraction.
+DO NOT truncate or summarize the table. Extract and present the ENTIRE table, regardless of its size.
+IMPORTANT: Do not just print a sample or partial representation of the table. The goal is to extract and present the complete table exactly as it appears in the image.
+
+Example output for a complete table:
+
+
+Copy
+| Device | Package | XPIO DDR | XPIO DDR+PL | XPIO PL Only | HDIO | MIO | GTY | GTYP |
+|--------|---------|----------|-------------|--------------|------|-----|-----|------|
+| Dev1   | Pkg1    | 132      | 246         | 0            | 44   | 78  | 24  | 0    |
+| Dev2   | Pkg2    | 188      | 136         | 0            | 88   | 78  | 12  | 4    |
+... [Continue until ALL rows and columns are represented]
+Only after providing this complete table representation, proceed with the following steps:
+
+
+
+Additional Emphasis on Complete Extraction
+Extract and present ALL data from the table, without exception.
+Do not summarize, truncate, or omit any part of the table.
+If the table is large, still extract and present it in its entirety.
+Verify that the extracted table matches the original image in structure and content.
+Remember: The goal is to provide a complete and accurate representation of the entire table as it appears in the image, followed by a thorough analysis of its content.
+
+Only after providing this structural representation, proceed with the following steps:
+Initial Assessment:
+Identify the type of visual content (e.g., table, chart, flowchart, block diagram, mixed content).
+Note any text outside the main visual elements that provides context or explanations.
+
+Identify the number of tables in the image.
+For each table, note its title, caption, or any contextual information.
+Describe the overall structure of each table (number of rows, columns, headers, etc.).
+
+Detailed Table Analysis:
+For each table in the image, perform the following analysis:
+Table Structure:
+
+Identify all column headers and row headers, including multi-level headers.
+Note any merged cells or special formatting.
+Identify footnotes or legends associated with the table.
+
+
+Data Extraction:
+
+Extract all data from each cell, preserving exact formatting and notation.
+For cells with multiple values separated by commas, extract each value separately while maintaining original order.
+Mark truly empty cells explicitly as "Empty" or "N/A".
+Do not confuse cells containing "0" with empty cells.
+
+
+careful handling of tables like with these headings:
+
+Device Package Combinations and Maximum I/O
+1. Verify Table Structure Before Extraction:
+Count the Rows and Columns:
+Before extracting any data, count the total number of rows and columns in the table to ensure you are working with the correct table structure.
+Check for Merged Cells:
+Identify any merged cells, particularly in headers, as they may affect the alignment of data with the corresponding rows and columns.
+Ensure Alignment:
+Verify that the data in each cell aligns correctly with the headers above and the labels on the left side of the table. This is crucial to prevent errors like reading from 4x3 when the correct value should come from 4x4.
+Note Any Special Formatting:
+Pay attention to any special formatting, such as bold or italic text, which might indicate specific instructions or notes related to the data.
+2. Identify and Understand the I/O Types:
+GTY and GTYP:
+GTY refers to high-speed transceivers that may be dedicated to either the Programmable Logic (PL) or the Processing System (PS) sections of the FPGA.
+GTYP might be a variant of GTY with specific conditions (e.g., "PL Only" or "PS Only").
+XPIO DDR, XPIO DDR+PL, XPIO PL Only:
+These terms refer to different configurations of I/O types where DDR stands for double data rate memory interfaces, and PL stands for programmable logic.
+HDIO and MIO:
+HDIO refers to high-density I/O, and MIO refers to multi-functional I/O, both of which are standard I/O types available on the FPGA.
+3. Interpreting the Pin Counts:
+Multiple Values in Cells:
+Cells may contain multiple comma-separated values. The order of these values corresponds directly to the I/O types specified in the column headers or table notes.
+Handling Merged Cells:
+If a cell spans multiple rows or columns, assume that the values in this cell apply to all the headers it intersects with.
+4. Specific Steps to Read and Extract Data:
+A. Identify the Device and Package:
+
+Columns: The columns specify different device variants.
+Rows: The rows specify different package types.
+B. Break Down Each Cell:
+
+For each device-package intersection:
+
+Identify all I/O types mentioned in the headers.
+Note the number of pins (or transceivers) for each I/O type in the order they are listed.
+Example Interpretation:
+
+If a cell under a device column and next to a package row reads "132, 246, 0 44, 78 24, 0":
+The first set corresponds to XPIO DDR, XPIO DDR+PL, XPIO PL Only: 132 pins for XPIO DDR, 246 pins for XPIO DDR+PL, 0 pins for XPIO PL Only.
+The second set (44, 78) corresponds to HDIO and MIO.
+The third set (24, 0) corresponds to GTY and GTYP: 24 transceivers for GTY, 0 transceivers for GTYP.
+Additional Example for GTYP (PL Only) and GTYP (PS Only):
+
+If a cell under a device column and next to a package row reads "188, 136, 0 88, 78 12, 4":
+The first set corresponds to XPIO DDR, XPIO DDR+PL, XPIO PL Only: 188 pins for XPIO DDR, 136 pins for XPIO DDR+PL, 0 pins for XPIO PL Only.
+The second set (88, 78) corresponds to HDIO and MIO.
+The third set (12, 4) corresponds to GTYP with 12 transceivers dedicated to PL ("PL Only") and 4 transceivers dedicated to PS ("PS Only").
+C. Handling Discrepancies:
+
+Missing Values: If fewer values are present in a cell than expected, assume the missing values are 0.
+Extra Values: If more values are present, note them all but verify against the I/O types listed in the header.
+5. Handling GTY and GTYP:
+GTY/GTYP Presence: Ensure that both GTY and GTYP are accounted for, especially when both are mentioned in the headers.
+Interpreting Pin Counts: If both GTY and GTYP are present, the last two values typically correspond to GTY and GTYP, respectively. Extract these values carefully, ensuring the correct assignment to GTY and GTYP.
+6. Cross-Referencing and Verification:
+Consistency Check: Ensure that the interpretation of each cell matches the I/O types listed in the table's headers or footnotes.
+Cross-Reference with Other Tables: If another table provides additional context or definitions, use this information to verify the extracted data.
+7. Presentation of Extracted Data:
+Structured Format:
+Present the data in a way that mirrors the original layout, ensuring clarity in the relationship between I/O types and their corresponding pin counts.
+Example:
+[Device, Package] : {XPIO DDR: 132, XPIO DDR+PL: 246, XPIO PL Only: 0, HDIO: 44, MIO: 78, GTY: 24, GTYP: 0}
+[Device, Package] : {XPIO DDR: 188, XPIO DDR+PL: 136, XPIO PL Only: 0, HDIO: 88, MIO: 78, GTYP (PL Only): 12, GTYP (PS Only): 4}
+This updated prompt ensures that the correct table structure is identified and verified before any data extraction takes place, which will help prevent errors like taking values from the wrong cells. It also includes additional examples for handling GTYP (PS Only) and GTYP (PL Only) to further clarify the process.
+
+
+Handling Special Cases:
+
+If a cell contains fewer values than expected based on the I/O types listed, assume the missing values are 0.
+If a cell contains more values than expected, note this discrepancy and provide all values.
+
+
+Data Relationships:
+
+Identify how different columns or rows relate to each other, especially for complex multi-level headers.
+Note any patterns or consistencies in the data across different device-package combinations.
+
+
+
+Verification and Quality Check:
+
+Double-check all extracted information against the original image.
+Ensure no elements have been overlooked or misinterpreted.
+Verify that all relationships and associations are accurately represented.
+Pay special attention to the accuracy of extracted GTY, GTYP, and other I/O type data.
+
+Data Representation:
+
+Present extracted information in a structured format that mirrors the original layout where possible.
+Use a format like [Device, Package] : {I/O Type: Pin Count, ...} for each cell.
+For complex headers or merged cells, ensure the representation clearly shows the relationships between headers and data.
+
+
+Numeric Data Handling:
+
+Preserve exact numeric values, including any decimal places or units.
+Do not round or approximate numeric values.
+Note any special numeric formats (e.g., scientific notation, percentages).
+
+
+Text Data Handling:
+
+Preserve exact spelling, capitalization, and any special characters.
+Note any abbreviations or acronyms, and provide explanations if given in the image.
+
+
+Data Relationships:
+
+Identify and explain any evident relationships between different data points or elements.
+Note how different columns or rows relate to each other, especially for complex multi-level headers.
+
+
+Conditional Formatting:
+
+Capture any conditional formatting, color coding, or special notations and explain their meaning.
+
+
+Cross-referencing:
+
+If the table refers to other tables or external data, note these references explicitly.
+
+Chart Analysis: If the image contains charts:
+
+
+ Identify the chart type (e.g., bar, line, pie, scatter plot).
+ Describe the axes, including units and scales.
+ List all data series or categories represented.
+ Extract specific data points or trends.
+ Note any legends and what they represent.
+ Describe overall patterns or key insights visible in the chart.
+
+
+ Mixed Content:
+ If the image contains multiple types of visual elements:
+
+
+ Analyze each element separately using the appropriate method above.
+ Describe how the different elements relate to or complement each other.
+
+
+ Contextual Information:
+
+
+ Note any titles, captions, or explanatory text in the image.
+ Describe any logos, watermarks, or identifying information about the source of the image.
+
+
+ Data Relationships and Logical Reasoning:
+
+
+ Identify and explain any evident relationships between different data points or elements.
+ Do not infer relationships that are not explicitly shown or logically necessary.
+ If there are apparent inconsistencies or unclear elements, note them without making assumptions.
+
+
+
+
+Verification and Quality Check:
+
+Double-check all extracted information against the original image.
+Ensure no elements have been overlooked or misinterpreted.
+Verify that all relationships and associations are accurately represented.
+Pay special attention to the accuracy of extracted GTY, GTYP, and other I/O type data.
+
+Data Representation:
+
+Present extracted information in a structured format that mirrors the original layout where possible.
+Use a format like [Row Header, Column Header] : Cell Contents for tabular data.
+For complex headers or merged cells, ensure the representation clearly shows the relationships between headers and data.
+
+Summary:
+
+Provide a brief overview of the key information presented in each table.
+Highlight any particularly significant or unusual aspects of the table content, especially regarding GTY, GTYP, or other I/O types.
+
+Remember to maintain the integrity of the original data and relationships without making unsupported inferences or assumptions. If any part of the image or its content is unclear or ambiguous, state this explicitly in your analysis.

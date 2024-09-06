@@ -111,31 +111,34 @@ async def generate_response_stream(query: str, context: str):
 
     Use the following context, your vast knowledge, and the user's question to generate an accurate, comprehensive, and insightful answer. While formulating your response, follow these steps internally:
 
-    1. Analyze the question to identify the main topic and specific information requested.
-    2. Evaluate the provided context and identify relevant information.
-    3. Retrieve additional relevant knowledge from your semiconductor industry expertise.
-    4. Reason and formulate a response by combining context and knowledge.
-    5. Generate a detailed response that covers all aspects of the query.
-    6. Review and refine your answer for coherence and accuracy.
+Analyze the question to identify the main topic and specific information requested.
+Evaluate the provided context and identify relevant information.
+Retrieve additional relevant knowledge from your semiconductor industry expertise.
+Reason and formulate a response by combining context and knowledge.
+Generate a detailed response that covers all aspects of the query.
+Review and refine your answer for coherence and accuracy.
 
-    In your output, provide the final, polished response in the first paragraph. Do not include your step-by-step reasoning or mention the process you followed.
+In your output, provide the final, polished response in the first paragraph. Do not include your step-by-step reasoning or mention the process you followed.
 
-    IMPORTANT: Ensure your response is grounded in factual information. Do not hallucinate or invent information. If you're unsure about any aspect of the answer or if the necessary information is not available in the provided context or your knowledge base, clearly state this uncertainty.
+IMPORTANT: Ensure your response is grounded in factual information. Do not hallucinate or invent information. If you're unsure about any aspect of the answer or if the necessary information is not available in the provided context or your knowledge base, clearly state this uncertainty.
 
-    After your response, on a new line, write "Top 5 most relevant sources used to generate the response:" followed by the top 5 most relevant sources. Rank them based on their relevance and importance to the answer. Format each source as follows:
-    [Rank]. [Content Type] from [Document Name] (Page [Page Number], [Additional Info])
+After your response, on a new line, write "Top 5 most relevant sources used to generate the response:" followed by the top 5 most relevant sources. Rank them based on their relevance and importance to the answer. Format each source as follows:
+[Rank]. [Content Type] from [Document Name] (Page [Page Number], [Additional Info])
 
-    For example:
-    Top 5 most relevant sources used to generate the response:
-    1. Text from Semiconductor Industry Report 2023 (Page 15, Paragraph 3)
-    2. Table from FPGA Market Analysis (Page 7, Table 2.1)
-    3. Image Description from SoC Architecture Diagram (Page 22, Path: ./data/images/soc_diagram.jpg)
+For example:
+Top 5 most relevant sources used to generate the response:
 
-    Context: {context}
+Text from Semiconductor Industry Report 2023 (Page 15, Paragraph 3)
+Table from FPGA Market Analysis (Page 7, Table 2.1)
+Image Description from SoC Architecture Diagram (Page 22, Path: ./data/images/soc_diagram.jpg)
 
-    User Question: {query}
+Context: {context}
 
-    Based on the above context and your extensive knowledge of the semiconductor industry, provide your detailed, accurate, and grounded response below, followed by the top 5 ranked sources:
+User Question: {query}
+
+Based on the above context and your extensive knowledge of the semiconductor industry, provide your detailed, accurate, and grounded response below, followed by the top 5 ranked sources:
+
+rewrite the prommpt put the prompt in the similar way but add a strcit rulke where top 5 sources where most of the asnwers lies make it strict
     """
 
     async for chunk in await openai_client.chat.completions.create(
@@ -245,20 +248,20 @@ async def ask():
         return jsonify({'error': 'An error occurred while processing your request'}), 500
     
 
+@app.route('/<path:filename>')
+def serve_pdf(filename):
+    try:
+        return send_file(filename)
+    except Exception as e:
+        app.logger.error(f"Error serving PDF {filename}: {str(e)}")
+        return f"Error: Could not serve file {filename}", 404
+
 @app.route('/data/<path:filename>')
 def serve_pdf(filename):
     try:
-        # Get the absolute path to the data directory
-        data_dir = os.path.join(current_app.root_path, 'data')
-        # Log the attempted file access
-        app.logger.info(f"Attempting to serve file: {os.path.join(data_dir, filename)}")
-        return send_from_directory(data_dir, filename)
+        return send_from_directory('data', filename)
     except FileNotFoundError:
-        app.logger.error(f"File not found: {filename}")
         return f"Error: File {filename} not found", 404
-    except Exception as e:
-        app.logger.error(f"Error serving PDF {filename}: {str(e)}")
-        return f"Error: Could not serve file {filename}", 500
 
 @app.route('/status')
 async def status():

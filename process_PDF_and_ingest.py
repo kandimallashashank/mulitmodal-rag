@@ -1,47 +1,60 @@
 import os
 import base64
+import asyncio
+import aiohttp
 from tqdm import tqdm
-from PIL import Image
-import io
-import os
-from dotenv import load_dotenv
 import weaviate
-from openai import OpenAI
-from anthropic import Anthropic
+from dotenv import load_dotenv
+from openai import AsyncOpenAI
+import anthropic
 from unstructured.partition.pdf import partition_pdf
 from unstructured.documents.elements import NarrativeText, Table, Image as UnstructuredImage
 from weaviate.util import generate_uuid5
+import nltk
+import logging
 
+import weaviate.classes.config as wc
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Load environment variables
 load_dotenv()
-# Set up environment variables and API keys
-OPENAI_API_KEY = os.get('OPENAI_API_KEY')
-ANTHROPIC_API_KEY = os.get('ANTHROPIC_API_KEY')
-WCS_URL = os.get('WCS_URL')
-WCS_API_KEY = os.get('WCS_API_KEY')
 
-os.environ['OPENAI_API_KEY'] = OPENAI_API_KEY
+# Download NLTK data
+nltk.download('punkt', quiet=True)
+
+# Set up environment variables and API keys
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
+WCS_URL = os.getenv('WCS_URL')
+WCS_API_KEY = os.getenv('WCS_API_KEY')
 
 # Initialize clients
-openai_client = OpenAI(api_key=OPENAI_API_KEY)
-anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY)
+openai_client = AsyncOpenAI()
+anthropic_client = anthropic.Anthropic()
 weaviate_client = weaviate.connect_to_wcs(
     cluster_url=WCS_URL,
     auth_credentials=weaviate.auth.AuthApiKey(WCS_API_KEY),
     headers={"X-OpenAI-Api-Key": OPENAI_API_KEY}
 )
 
+def load_prompt(file_path):
+    with open(file_path, 'r') as file:
+        return file.read().strip()
+
 def encode_image(image_path):
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode('utf-8')
 
-def get_embedding(text):
-    response = openai_client.embeddings.create(
+async def get_embedding(text):
+    response = await openai_client.embeddings.create(
         input=text,
         model="text-embedding-3-large"
     )
     return response.data[0].embedding
 
-def summarize_image(img_base64, prompt):
+async def summarize_image(img_base64, prompt):
     message = anthropic_client.messages.create(
         model="claude-3-sonnet-20240229",
         max_tokens=1000,
@@ -64,130 +77,136 @@ def summarize_image(img_base64, prompt):
     )
     return message.content[0].text
 
-def process_pdf(pdf_path, output_dir):
+async def process_element(element, pdf_path, image_prompt, paragraph_number):
+    if isinstance(element, NarrativeText):
+        return {
+            "type": "text",
+            "data": {
+                "source_document": pdf_path,
+                "page_number": element.metadata.page_number,
+                "paragraph_number": paragraph_number,
+                "text": element.text
+            }
+        }
+    elif isinstance(element, (UnstructuredImage, Table)):
+        page_number = element.metadata.page_number if hasattr(element.metadata, 'page_number') else None
+        image_path = element.metadata.image_path if hasattr(element.metadata, 'image_path') else None
+
+        if image_path and os.path.exists(image_path):
+            base64_image = encode_image(image_path)
+            description = await summarize_image(base64_image, image_prompt)
+
+            return {
+                "type": "image",
+                "data": {
+                    "source_document": pdf_path,
+                    "page_number": page_number,
+                    "image_path": image_path,
+                    "description": description,
+                    "base64_encoding": base64_image
+                }
+            }
+        else:
+            logging.warning(f"Image file not found or path not available for image on page {page_number}")
+            return None
+
+
+async def process_pdf(pdf_path, output_dir, image_prompt):
     pdf_name = os.path.basename(pdf_path)
     pdf_output_dir = os.path.join(output_dir, pdf_name.replace('.pdf', ''))
     os.makedirs(pdf_output_dir, exist_ok=True)
     
     elements = partition_pdf(
         filename=pdf_path,
-        extract_images_in_pdf=True,
-        infer_table_structure=True,
+        extract_images_in_pdf=False,
+        infer_table_structure=False,
         strategy="hi_res",
-        extract_image_block_types=["Image", "Table"],
+        #extract_image_block_types=["Image", "Table"],
         extract_image_block_output_dir=pdf_output_dir
     )
     
-    text_data = []
-    image_data = []
-    table_data = []
+    tasks = [process_element(element, pdf_path, image_prompt, idx) for idx, element in enumerate(elements)]
+    results = await asyncio.gather(*tasks)
+    results = [result for result in results if result is not None]
     
-    for idx, element in enumerate(elements):
-        if isinstance(element, NarrativeText):
-            text_data.append({
-                "source_document": pdf_path,
-                "page_number": element.metadata.page_number,
-                "paragraph_number": idx,
-                "text": element.text
-            })
-        elif isinstance(element, (UnstructuredImage, Table)):
-            image_path = element.metadata.image_path if hasattr(element.metadata, 'image_path') else None
-            if image_path and os.path.exists(image_path):
-                base64_image = encode_image(image_path)
-                description = summarize_image(base64_image, "Describe this image or table in detail.")
-                
-                data = {
-                    "source_document": pdf_path,
-                    "page_number": element.metadata.page_number,
-                    "image_path": image_path,
-                    "description": description,
-                    "base64_encoding": base64_image
+    text_data = [item['data'] for item in results if item['type'] == 'text']
+    image_data = [item['data'] for item in results if item['type'] == 'image']
+    
+    return text_data, image_data
+
+async def batch_ingest_data(collection, data, data_type, batch_size=100):
+    total_batches = (len(data) + batch_size - 1) // batch_size
+    for i in tqdm(range(0, len(data), batch_size), desc=f"Ingesting {data_type} data", total=total_batches):
+        batch = data[i:i+batch_size]
+        with collection.batch.dynamic() as batch_writer:
+            for item in batch:
+                vector = await get_embedding(item['text'] if data_type == 'text' else item['description'])
+                properties = {
+                    "source_document": item['source_document'],
+                    "page_number": item['page_number'],
+                    "content_type": data_type
                 }
                 
-                if isinstance(element, Table):
-                    data["table_content"] = str(element)
-                    table_data.append(data)
-                else:
-                    image_data.append(data)
-    
-    return text_data, image_data, table_data
+                if data_type == 'text':
+                    properties.update({
+                        "paragraph_number": item['paragraph_number'],
+                        "text": item['text']
+                    })
+                elif data_type == 'image':
+                    properties.update({
+                        "image_path": item['image_path'],
+                        "description": item['description'],
+                        "base64_encoding": item['base64_encoding']
+                    })
+                
+                uuid = generate_uuid5(f"{item['source_document']}_{item['page_number']}_{data_type}_{item.get('paragraph_number', '') or item.get('image_path', '')}")
+                batch_writer.add_object(properties=properties, uuid=uuid, vector=vector)
 
-def ingest_data(collection, data, data_type):
-    with collection.batch.dynamic() as batch:
-        for item in tqdm(data, desc=f"Ingesting {data_type} data"):
-            vector = get_embedding(item['text'] if data_type == 'text' else item['description'])
-            properties = {
-                "source_document": item['source_document'],
-                "page_number": item['page_number'],
-                "content_type": data_type
-            }
-            
-            if data_type == 'text':
-                properties.update({
-                    "paragraph_number": item['paragraph_number'],
-                    "text": item['text']
-                })
-            elif data_type == 'image':
-                properties.update({
-                    "image_path": item['image_path'],
-                    "description": item['description'],
-                    "base64_encoding": item['base64_encoding']
-                })
-            elif data_type == 'table':
-                properties.update({
-                    "table_content": item['table_content'],
-                    "description": item['description']
-                })
-            
-            uuid = generate_uuid5(f"{item['source_document']}_{item['page_number']}_{data_type}_{item.get('paragraph_number', '') or item.get('image_path', '')}")
-            batch.add_object(properties=properties, uuid=uuid, vector=vector)
-
-def process_pdf_directory(pdf_dir, output_dir):
+async def process_pdf_directory(pdf_dir, output_dir, image_prompt):
     all_text_data = []
     all_image_data = []
-    all_table_data = []
     
     for filename in os.listdir(pdf_dir):
         if filename.endswith('.pdf'):
             pdf_path = os.path.join(pdf_dir, filename)
-            print(f"Processing {filename}...")
-            text_data, image_data, table_data = process_pdf(pdf_path, output_dir)
+            logging.info(f"Processing {filename}...")
+            text_data, image_data = await process_pdf(pdf_path, output_dir, image_prompt)
             all_text_data.extend(text_data)
             all_image_data.extend(image_data)
-            all_table_data.extend(table_data)
     
-    return all_text_data, all_image_data, all_table_data
+    return all_text_data, all_image_data
 
-def main(pdf_dir, output_dir, collection_name):
-    # Process all PDFs in the directory
-    text_data, image_data, table_data = process_pdf_directory(pdf_dir, output_dir)
+async def main(pdf_dir, output_dir, collection_name, prompt_file):
+    image_prompt = load_prompt(prompt_file)
     
-    # Get or create Weaviate collection
-    collection = weaviate_client.collections.get_or_create(
-        name=collection_name,
-        vectorizer_config=weaviate.classes.Configure.Vectorizer.none(),
-        properties=[
-            {"name": "source_document", "dataType": ["text"]},
-            {"name": "page_number", "dataType": ["int"]},
-            {"name": "paragraph_number", "dataType": ["int"]},
-            {"name": "text", "dataType": ["text"]},
-            {"name": "image_path", "dataType": ["text"]},
-            {"name": "description", "dataType": ["text"]},
-            {"name": "base64_encoding", "dataType": ["blob"]},
-            {"name": "table_content", "dataType": ["text"]},
-            {"name": "content_type", "dataType": ["text"]}
-        ]
-    )
+    text_data, image_data = await process_pdf_directory(pdf_dir, output_dir, image_prompt)
     
-    # Ingest data
-    ingest_data(collection, text_data, 'text')
-    ingest_data(collection, image_data, 'image')
-    ingest_data(collection, table_data, 'table')
+    if not weaviate_client.collections.exists(collection_name):
+        collection = weaviate_client.collections.create(
+            name=collection_name,
+            properties=[
+                {"name": "content", "data_type": wc.DataType.TEXT},
+                {"name": "page_number", "data_type": wc.DataType.INT},
+                {"name": "total_pages", "data_type": wc.DataType.INT},
+                {"name": "file_name", "data_type": wc.DataType.TEXT},
+                {"name": "chunk_id", "data_type": wc.DataType.TEXT},
+                {"name": "embedding", "data_type": wc.DataType.TEXT},
+                {"name": "image", "data_type": wc.DataType.BLOB},
+                {"name": "image_embedding", "data_type": wc.DataType.TEXT},
+                {"name": "metadata", "data_type": wc.DataType.TEXT}
+            ]
+        )
+    else:
+        collection = weaviate_client.collections.get(collection_name)
     
-    print("Data ingestion complete.")
+    await batch_ingest_data(collection, text_data, 'text')
+    await batch_ingest_data(collection, image_data, 'image')
+    
+    logging.info("Data ingestion complete.")
 
 if __name__ == "__main__":
-    pdf_dir = "./data/pdfs"  # Replace with your PDF directory path
+    pdf_dir = "./data/pdfs"
     output_dir = "./data/images"
     collection_name = "RAGESGDocuments3"
-    main(pdf_dir, output_dir, collection_name)
+    prompt_file = "./image_prompt.txt"
+    asyncio.run(main(pdf_dir, output_dir, collection_name, prompt_file))

@@ -7,8 +7,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const leftPanel = document.querySelector('.left-panel');
     const rightPanel = document.querySelector('.right-panel');
     const resizer = document.getElementById('resizer');
+    const splitScreen = document.querySelector('.split-screen');
 
-    // Resizer functionality
     let isResizing = false;
 
     resizer.addEventListener('mousedown', initResize);
@@ -22,14 +22,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function resize(e) {
         if (!isResizing) return;
-
-        const containerWidth = document.querySelector('.split-screen').offsetWidth;
+        const containerWidth = splitScreen.offsetWidth;
         const newLeftWidth = e.clientX - leftPanel.offsetLeft;
         const newRightWidth = containerWidth - newLeftWidth - resizer.offsetWidth;
 
         if (newLeftWidth > 300 && newRightWidth > 300) {
-            leftPanel.style.width = `${newLeftWidth}px`;
-            rightPanel.style.width = `${newRightWidth}px`;
+            const leftPercentage = (newLeftWidth / containerWidth) * 100;
+            const rightPercentage = (newRightWidth / containerWidth) * 100;
+            document.documentElement.style.setProperty('--chat-width', `${leftPercentage}%`);
+            document.documentElement.style.setProperty('--pdf-width', `${rightPercentage}%`);
         }
     }
 
@@ -51,20 +52,14 @@ document.addEventListener('DOMContentLoaded', function() {
     function sendMessage() {
         const question = userInput.value.trim();
         if (question) {
-            sendButton.disabled = true;
-            userInput.disabled = true;
-
             addMessage('user', question);
             userInput.value = '';
             clearFollowUpQuestions();
-
             showSearchingIndicator();
 
             fetch('/ask', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ question: question }),
             })
             .then(response => response.json())
@@ -72,25 +67,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 removeSearchingIndicator();
                 addMessage('bot', data.response);
                 addSources(data.sources);
-                
                 if (data.follow_up_questions) {
                     setTimeout(() => {
                         addFollowUpQuestions(data.follow_up_questions);
-                        scrollToBottom();
                     }, 1000);
                 }
-                
-                sendButton.disabled = false;
-                userInput.disabled = false;
-                userInput.focus();
             })
             .catch(error => {
                 console.error('Error:', error);
                 removeSearchingIndicator();
                 addMessage('bot', 'Sorry, there was an error processing your request.');
-                sendButton.disabled = false;
-                userInput.disabled = false;
-                userInput.focus();
             });
         }
     }
@@ -120,12 +106,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function addSources(sources) {
+        console.log("Raw sources:", sources);  // Log the raw sources string
         if (sources && sources.trim() !== "") {
             const sourcesElement = document.createElement('div');
             sourcesElement.className = 'sources';
             sourcesElement.innerHTML = '<strong>Sources:</strong><br>';
             
-            const sourcesList = sources.split(/(?=\d+\.\s+(?:Text|Image) from)/).filter(Boolean);
+            const sourcesList = sources.split(/(?=\d+\.\s+(?:Text|Image Description) from)/).filter(Boolean);
+            console.log("Split sources:", sourcesList);  // Log the split sources
+            
             sourcesList.forEach((source) => {
                 const sourceInfo = parseSourceInfo(source.trim());
                 if (sourceInfo) {
@@ -143,13 +132,15 @@ document.addEventListener('DOMContentLoaded', function() {
             
             chatContainer.appendChild(sourcesElement);
             scrollToBottom();
+        } else {
+            console.log("No sources provided or empty sources string");  // Log if sources is empty
         }
     }
 
     function addFollowUpQuestions(questions) {
         clearFollowUpQuestions();
         if (followUpContainer && questions && questions.length > 0) {
-            questions.slice(0, 2).forEach((question, index) => {
+            questions.forEach((question, index) => {
                 const button = document.createElement('button');
                 button.textContent = `${index + 1}. ${question}`;
                 button.className = 'follow-up-button';
@@ -171,127 +162,103 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function parseSourceInfo(source) {
+        console.log("parseSourceInfo input:", source);
+
         const regex = /(\d+)\.\s+(Text|Image Description) from ((?:\.\/)?(?:data\/)?.*\.pdf) \(Page (\d+)(?:,\s*(.+))?\)/;
         const match = source.match(regex);
+
         if (match) {
-            return {
+            const result = {
                 index: match[1],
                 type: match[2],
                 fileName: match[3].replace(/^\.\//, '').replace(/^data\//, ''),
                 page: match[4],
                 additional: match[5] || ''
             };
-        }
-        return null;
-    }
-
-    async function openSourceWithTest(sourceInfo) {
-        console.log("Opening source:", sourceInfo); // Debugging log
-        const url = `/data/${encodeURIComponent(sourceInfo.fileName)}`;
-        const isAccessible = await testPDFAccess(url);
-        if (isAccessible) {
-            openSource(sourceInfo);
+            console.log("parseSourceInfo output:", result);
+            return result;
         } else {
-            const viewerContainer = document.getElementById('viewer-container');
-            if (viewerContainer) {
-                viewerContainer.innerHTML = `
-                    <p>Error: PDF file is not accessible. Please check the file path and server configuration.</p>
-                    <p>Attempted URL: ${url}</p>
-                `;
-            }
-            addFallbackLink(sourceInfo);
+            console.log("parseSourceInfo failed to match regex");
+            return null;
         }
-    }
-
-    function testPDFAccess(url) {
-        return fetch(url, { method: 'HEAD' })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return true;
-            })
-            .catch(e => {
-                console.error("PDF is not accessible:", e);
-                return false;
-            });
     }
 
     function openSource(sourceInfo) {
+        console.log("openSource input:", sourceInfo);
+
         if (sourceInfo) {
             const viewerContainer = document.getElementById('viewer-container');
-            if (!viewerContainer) return;
+            if (!viewerContainer) {
+                console.log("Viewer container not found");
+                return;
+            }
             
             viewerContainer.innerHTML = '';
-    
-            const url = `/data/${sourceInfo.fileName}#page=${sourceInfo.page}`;
-    
+
+            const url = `/data/${encodeURIComponent(sourceInfo.fileName)}#page=${sourceInfo.page}`;
+            console.log("PDF URL:", url);
+
             const pdfViewer = document.createElement('iframe');
             pdfViewer.id = 'pdf-viewer';
             pdfViewer.src = url;
-            pdfViewer.style.width = '100%';
-            pdfViewer.style.height = '100%';
-            pdfViewer.style.border = 'none';
             
-            pdfViewer.onload = () => {
-                console.log("PDF iframe loaded");
-                openPDFPanel();
-            };
-        
-            pdfViewer.onerror = (error) => {
-                console.error("Error loading PDF in iframe:", error);
-                viewerContainer.innerHTML = `
-                    <p>Error loading PDF in iframe. Please try the direct link below:</p>
-                `;
-                addDirectLink(url);
-                openPDFPanel();
-            };
+            const closeButton = document.createElement('button');
+            closeButton.id = 'close-pdf';
+            closeButton.textContent = 'Close';
+            closeButton.onclick = closePDFViewer;
             
+            viewerContainer.appendChild(closeButton);
             viewerContainer.appendChild(pdfViewer);
             
-            // Add a fallback link in case the iframe doesn't load properly
-            addDirectLink(url);
+            openPDFViewer();
+        } else {
+            console.log("openSource called with null or undefined sourceInfo");
         }
     }
 
-    function addDirectLink(url) {
-        const viewerContainer = document.getElementById('viewer-container');
-        const directLink = document.createElement('a');
-        directLink.href = url;
-        directLink.target = "_blank";
-        directLink.textContent = "Open PDF directly";
-        directLink.style.display = "block";
-        directLink.style.marginTop = "10px";
-        viewerContainer.appendChild(directLink);
+    function openPDFViewer() {
+        document.documentElement.style.setProperty('--chat-width', '50%');
+        document.documentElement.style.setProperty('--pdf-width', '50%');
+        rightPanel.style.display = 'flex';
+        resizer.style.display = 'block';
     }
 
-    function addFallbackLink(sourceInfo) {
-        const viewerContainer = document.getElementById('viewer-container');
-        const fallbackLink = document.createElement('a');
-        fallbackLink.href = `/data/${sourceInfo.fileName}`;
-        fallbackLink.target = "_blank";
-        fallbackLink.textContent = "Open PDF in new tab";
-        fallbackLink.style.display = "block";
-        fallbackLink.style.marginTop = "10px";
-        viewerContainer.appendChild(fallbackLink);
+    function closePDFViewer() {
+        document.documentElement.style.setProperty('--chat-width', '100%');
+        document.documentElement.style.setProperty('--pdf-width', '0%');
+        setTimeout(() => {
+            rightPanel.style.display = 'none';
+            resizer.style.display = 'none';
+        }, 300); // Wait for transition to complete
     }
 
-    // Event listeners
+    function adjustPanelSizes() {
+        const totalWidth = splitScreen.offsetWidth;
+        if (rightPanel.style.display !== 'none') {
+            document.documentElement.style.setProperty('--chat-width', '50%');
+            document.documentElement.style.setProperty('--pdf-width', '50%');
+        } else {
+            document.documentElement.style.setProperty('--chat-width', '100%');
+            document.documentElement.style.setProperty('--pdf-width', '0%');
+        }
+    }
+
     sendButton.addEventListener('click', sendMessage);
     userInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
             sendMessage();
         }
     });
 
-    // Ensure proper sizing on window resize
-    window.addEventListener('resize', () => {
-        if (rightPanel.querySelector('#pdf-viewer')) {
-            rightPanel.querySelector('#pdf-viewer').style.height = `${rightPanel.clientHeight}px`;
-        }
-    });
+    window.addEventListener('resize', adjustPanelSizes);
 
-    // Initialize
     updateStatus();
     setInterval(updateStatus, 5000);
+
+    // Initially hide the right panel and resizer
+    rightPanel.style.display = 'none';
+    resizer.style.display = 'none';
+    document.documentElement.style.setProperty('--chat-width', '100%');
+    document.documentElement.style.setProperty('--pdf-width', '0%');
 });

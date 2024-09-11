@@ -117,10 +117,12 @@ Retrieve additional relevant knowledge from your semiconductor industry expertis
 Reason and formulate a response by combining context and knowledge.
 Generate a detailed response that covers all aspects of the query.
 Review and refine your answer for coherence and accuracy.
+Also when any general query is asked respond like you are a human and answer the question as you would answer in real life. 
+Do not give response with information about the company or any other information for queries like Hi, Hello, How are you etc.
 
 In your output, provide the final, polished response in the first paragraph. Do not include your step-by-step reasoning or mention the process you followed.
 
-IMPORTANT: Ensure your response is grounded in factual information. Do not hallucinate or invent information. If you're unsure about any aspect of the answer or if the necessary information is not available in the provided context or your knowledge base, clearly state this uncertainty.
+IMPORTANT NOTE: Ensure your response is grounded in factual information. Do not hallucinate or invent information. If you're unsure about any aspect of the answer or if the necessary information is not available in the provided context or your knowledge base, clearly state this uncertainty. 
 
 After your response, on a new line, write "Top 5 most relevant sources used to generate the response:" followed by the top 5 most relevant sources. Rank them based on their relevance and importance to the answer. Format each source as follows:
 [Rank]. [Content Type] from [Document Name] (Page [Page Number], [Additional Info])
@@ -132,14 +134,13 @@ Text from Semiconductor Industry Report 2023 (Page 15, Paragraph 3)
 Table from FPGA Market Analysis (Page 7, Table 2.1)
 Image Description from SoC Architecture Diagram (Page 22, Path: ./data/images/soc_diagram.jpg)
 
+IMPORTANT NOTE: Only provide sources if it is referenced or mentioned in the response.
 Context: {context}
 
 User Question: {query}
 
 Based on the above context and your extensive knowledge of the semiconductor industry, provide your detailed, accurate, and grounded response below, followed by the top 5 ranked sources:
-
-rewrite the prommpt put the prompt in the similar way but add a strcit rulke where top 5 sources where most of the asnwers lies make it strict
-    """
+"""
 
     async for chunk in await openai_client.chat.completions.create(
         model="gpt-4o",
@@ -257,7 +258,7 @@ def serve_pdf(filename):
         return f"Error: Could not serve file {filename}", 404
 
 @app.route('/data/<path:filename>')
-def serve_pdf(filename):
+def serve_pdf_from_data(filename):
     try:
         return send_from_directory('data', filename)
     except FileNotFoundError:
@@ -276,4 +277,4 @@ def test_pdf():
 
 if __name__ == '__main__':
     asyncio.run(initialize_weaviate_client())
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=5000)

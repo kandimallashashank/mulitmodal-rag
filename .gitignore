@@ -8,5 +8,9 @@ env/
 __pycache__/
 *.py[cod]
 *$py.class
+.env
+
+maxlinear/News_Releases
+maxlinear/Press_Releases
 
 # ... existing entries ...

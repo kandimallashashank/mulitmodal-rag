@@ -205,7 +205,7 @@ async def main(pdf_dir, output_dir, collection_name, prompt_file):
     logging.info("Data ingestion complete.")
 
 if __name__ == "__main__":
-    pdf_dir = "./data/pdfs"
+    pdf_dir = "./data/pdfs" # Directory containing the PDFs to be processed
     output_dir = "./data/images"
     collection_name = "RAGESGDocuments3"
     prompt_file = "./image_prompt.txt"

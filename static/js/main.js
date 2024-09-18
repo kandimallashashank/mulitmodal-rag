@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (sources && sources.trim() !== "") {
             const sourcesElement = document.createElement('div');
             sourcesElement.className = 'sources';
-            sourcesElement.innerHTML = '<strong>Sources:</strong><br>';
+            sourcesElement.innerHTML = '<strong>Top 5 Relevant Sources:</strong><br>';
             
             const sourcesList = sources.split(/(?=\d+\.\s+(?:Text|Image Description) from)/).filter(Boolean);
             console.log("Split sources:", sourcesList);  // Log the split sources
@@ -195,7 +195,9 @@ document.addEventListener('DOMContentLoaded', function() {
             
             viewerContainer.innerHTML = '';
 
-            const url = `/data/${encodeURIComponent(sourceInfo.fileName)}#page=${sourceInfo.page}`;
+            // const url = `/data/${encodeURIComponent(sourceInfo.fileName)}#page=${sourceInfo.page}`;
+            const sanitizedFileName = sourceInfo.fileName.replace(/\\/g, '/');
+            const url = `/data/${encodeURIComponent(sanitizedFileName)}#page=${sourceInfo.page}`;
             console.log("PDF URL:", url);
 
             const pdfViewer = document.createElement('iframe');

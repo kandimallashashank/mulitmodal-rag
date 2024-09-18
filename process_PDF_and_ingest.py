@@ -118,8 +118,8 @@ async def process_pdf(pdf_path, output_dir, image_prompt):
     
     elements = partition_pdf(
         filename=pdf_path,
-        extract_images_in_pdf=False,
-        infer_table_structure=False,
+        extract_images_in_pdf=True,
+        infer_table_structure=True,
         strategy="hi_res",
         #extract_image_block_types=["Image", "Table"],
         extract_image_block_output_dir=pdf_output_dir
@@ -205,7 +205,7 @@ async def main(pdf_dir, output_dir, collection_name, prompt_file):
     logging.info("Data ingestion complete.")
 
 if __name__ == "__main__":
-    pdf_dir = "./data/pdfs" # Directory containing the PDFs to be processed
+    pdf_dir = "./maxlinear/News_Releases" # Directory containing the PDFs to be processed
     output_dir = "./data/images"
     collection_name = "RAGESGDocuments3"
     prompt_file = "./image_prompt.txt"

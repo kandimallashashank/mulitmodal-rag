@@ -1,4 +1,0 @@
-beautifulsoup4
-pdfkit
-selenium
-webdriver-manager

@@ -10,7 +10,6 @@ __pycache__/
 *$py.class
 .env
 
-maxlinear/News_Releases
-maxlinear/Press_Releases
+data/
 
 # ... existing entries ...

@@ -9,5 +9,8 @@ env/
 __pycache__/
 *.py[cod]
 *$py.class
+.env
+
+data/
 
 # ... existing entries ...

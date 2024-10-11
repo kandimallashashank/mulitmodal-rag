@@ -208,5 +208,6 @@ if __name__ == "__main__":
     pdf_dir = "./maxlinear/News_Releases" # Directory containing the PDFs to be processed
     output_dir = "./data/images"
     collection_name = "RAGESGDocuments3"
-    prompt_file = "./image_prompt.txt"
+    # prompt_file = "./image_prompt.txt"
+    prompt_file = "./image_prompt_maxlinear.txt"
     asyncio.run(main(pdf_dir, output_dir, collection_name, prompt_file))

@@ -118,10 +118,13 @@ Instructions:
 1. Carefully analyze the query and the provided context.
 2. Formulate a response that directly addresses the query, prioritizing information from the given context.
 3. Structure your response as follows:
-   a. Start with a concise summary (2-3 sentences) that directly answers the main point of the query.
-   b. Provide a detailed explanation, breaking it down into relevant subsections if necessary.
-   c. Include specific examples, technical details, or comparisons where appropriate.
-   d. Discuss any potential implications or future developments related to the query.
+   a. Summary: Start with a brief summary (2-3 sentences) that directly answers the main query.
+   b. Detailed Explanation:
+        Break down your response into relevant points or small paragraphs.
+        Provide specific examples, technical details, or comparisons where appropriate.
+        Include relevant numerical data, statistics, or technical specifications to support your points.
+   c. Implications or Future Developments:
+   d. Discuss any potential implications or future trends related to the query.
 
 4. Cite your sources using the following format:
    [1] for the first source, [2] for the second, and so on.

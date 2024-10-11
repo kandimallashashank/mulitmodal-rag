@@ -1,0 +1,140 @@
+**Task Overview:**
+
+When provided with news articles from the website [MaxLinear News](https://www.maxlinear.com/news/), thoroughly extract all relevant information, including text content, tables, and images.
+
+---
+
+**Instructions:**
+
+1. **Complete Content Extraction:**
+
+   - **Text Content:**
+     - Extract and present the full text of each news article.
+     - Include all headlines, subheadings, body text, quotes, bullet points, and any other textual elements.
+     - Preserve the original structure and formatting where possible.
+
+   - **Tables:**
+     - Identify any tables within the articles.
+     - Extract and output the complete table structure and data in a text-based format (e.g., Markdown).
+     - Include all headers (both column and row), subheaders, and the entire layout of the table.
+     - Extract and present all cell contents without omission.
+     - Clearly indicate any merged cells, multi-level headers, or special formatting.
+     - Do not summarize, truncate, or omit any part of the table.
+
+   - **Images:**
+     - Identify all images included in the articles.
+     - Provide a descriptive caption for each image.
+     - Include any available alt text or image descriptions.
+     - If possible, extract the image's URL or source.
+
+2. **Article Metadata:**
+
+   - **Publication Details:**
+     - Title of the article.
+     - Publication date and time.
+     - Author(s) or source, if available.
+     - Any tags, categories, or keywords associated with the article.
+
+3. **Verification and Quality Check:**
+
+   - Double-check all extracted information against the original article.
+   - Ensure no elements have been overlooked or misinterpreted.
+   - Verify that all relationships and associations are accurately represented.
+
+4. **Data Representation:**
+
+   - Present extracted information in a structured format that mirrors the original layout.
+   - Use clear headings and subheadings to organize content.
+   - For tables, utilize Markdown or plain text to recreate the structure accurately.
+   - For images, list them sequentially with their captions and any relevant details.
+
+5. **Summary:**
+
+   - Provide a brief overview of the key information presented in each article.
+   - Highlight any significant announcements, data points, or statements.
+   - Ensure the summary is factual and free of personal opinions or interpretations.
+
+6. **Additional Guidelines:**
+
+   - **Completeness:**
+     - Extract and present all data from the articles without exception.
+     - Do not omit any sections, paragraphs, or elements.
+
+   - **Accuracy:**
+     - Preserve exact spelling, capitalization, and any special characters.
+     - Maintain the integrity of numeric data, including units and formats.
+
+   - **Handling Special Cases:**
+     - If certain information is unavailable or unclear, explicitly state this.
+     - For empty fields or missing data, use "N/A" or "Not specified."
+
+   - **Data Relationships:**
+     - Identify and explain any evident relationships between different data points or elements.
+     - Note how different sections of the article relate to each other.
+
+   - **Cross-referencing:**
+     - Note any references to other articles, documents, or external sources.
+     - Include hyperlinks if available.
+
+   - **Neutrality:**
+     - Maintain an objective tone throughout.
+     - Do not add personal opinions, interpretations, or assumptions.
+
+---
+
+**Example Output Structure:**
+
+1. **Article Metadata:**
+
+   - **Title:** *[Article Title]*
+   - **Publication Date:** *[Date and Time]*
+   - **Author:** *[Author Name]* or *Not specified*
+   - **Categories/Tags:** *[List of Categories or Tags]*
+
+2. **Article Content:**
+
+   - **Headline/Subheadings:**
+     - *[List all headlines and subheadings in order]*
+   - **Body Text:**
+     - *[Full text of the article, preserving paragraphs and formatting]*
+
+3. **Tables:**
+
+   - **Table 1: [Table Title or Description]**
+
+     | Column Header 1 | Column Header 2 | Column Header 3 |
+     |-----------------|-----------------|-----------------|
+     | Row 1 Data      | Row 1 Data      | Row 1 Data      |
+     | Row 2 Data      | Row 2 Data      | Row 2 Data      |
+     | ...             | ...             | ...             |
+
+   - **Notes:**
+     - *[Any footnotes or special notes related to the table]*
+
+4. **Images:**
+
+   - **Image 1:**
+     - **Caption:** *[Image Caption]*
+     - **Description:** *[Alt text or description]*
+     - **Source URL:** *[Image URL if available]*
+
+   - **Image 2:**
+     - **Caption:** *[Image Caption]*
+     - **Description:** *[Alt text or description]*
+     - **Source URL:** *[Image URL if available]*
+
+5. **Summary:**
+
+   - *[Provide a concise summary of the article's key points]*
+
+6. **Additional Notes:**
+
+   - *[Any additional observations or important details]*
+
+---
+
+**Objective:**
+
+The goal is to provide a complete and accurate representation of each news article from MaxLinear's website, capturing all textual content, tables, and images, along with their context and relationships, without making unsupported inferences or omissions.
+
+---

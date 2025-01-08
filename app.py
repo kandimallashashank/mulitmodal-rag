@@ -282,7 +282,8 @@ def serve_pdf(filename):
         return f"Error: Could not serve file {filename}", 404
 
 @app.route('/data/<path:filename>')
-def serve_pdf_from_data(filename):
+
+def data_serve_pdf(filename):
     try:
         return send_from_directory('data', filename)
     except FileNotFoundError:

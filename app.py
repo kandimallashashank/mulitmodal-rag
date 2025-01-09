@@ -7,7 +7,9 @@ import logging
 import weaviate
 from openai import AsyncOpenAI
 from config import COLLECTION_NAME
-import re
+import re, torch
+from sentence_transformers import SentenceTransformer
+
 
 # Get the absolute path of the directory containing app.py
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -22,7 +24,14 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Set up AsyncOpenAI client
-openai_client = AsyncOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+# openai_client = AsyncOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+groq_client = AsyncOpenAI(
+    base_url="https://api.groq.com/openai/v1",
+    api_key=os.getenv('GROQ_API_KEY')
+)
+
+# Initialize SentenceTransformer model
+embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
 
 # Initialize Weaviate client
 client = None
@@ -30,7 +39,7 @@ client = None
 # Global variable to track connection status
 connection_status = {"status": "Disconnected", "color": "red"}
 
-# Function to initialize the Weaviate client
+# Initialize Weaviate client with v4 syntax (to address deprecation warning)
 async def initialize_weaviate_client(max_retries=3, retry_delay=5):
     global client, connection_status
     retries = 0
@@ -40,12 +49,8 @@ async def initialize_weaviate_client(max_retries=3, retry_delay=5):
             logger.info(f"Attempting to connect to Weaviate (Attempt {retries + 1}/{max_retries})")
             client = weaviate.Client(
                 url=os.getenv('WCS_URL'),
-                auth_client_secret=weaviate.auth.AuthApiKey(os.getenv('WCS_API_KEY')),
-                additional_headers={
-                    "X-OpenAI-Api-Key": os.getenv('OPENAI_API_KEY')
-                }
+                auth_client_secret=weaviate.auth.AuthApiKey(os.getenv('WCS_API_KEY'))
             )
-            # Test the connection
             await asyncio.to_thread(client.schema.get)
             connection_status = {"status": "Connected", "color": "green"}
             logger.info("Successfully connected to Weaviate")
@@ -55,11 +60,9 @@ async def initialize_weaviate_client(max_retries=3, retry_delay=5):
             connection_status = {"status": f"Error: {str(e)}", "color": "red"}
             retries += 1
             if retries < max_retries:
-                logger.info(f"Retrying in {retry_delay} seconds...")
                 await asyncio.sleep(retry_delay)
-            else:
-                logger.error("Max retries reached. Could not connect to Weaviate.")
     return connection_status
+
 
 # Async-compatible caching decorator
 def async_lru_cache(maxsize=1024):
@@ -79,11 +82,17 @@ def async_lru_cache(maxsize=1024):
 
 @async_lru_cache(maxsize=1000)
 async def get_embedding(text):
-    response = await openai_client.embeddings.create(
-        input=text,
-        model="text-embedding-3-large"
-    )
-    return response.data[0].embedding
+    """Generate embeddings using sentence-transformers"""
+    try:
+        # Run the embedding generation in a thread pool to not block
+        embedding = await asyncio.to_thread(
+            lambda: embedding_model.encode(text, convert_to_tensor=True)
+        )
+        # Convert to list for JSON serialization
+        return embedding.tolist()
+    except Exception as e:
+        logger.error(f"Error generating embedding: {str(e)}")
+        raise
 
 async def search_multimodal(query: str, limit: int = 30, alpha: float = 0.6):
     logger.info(f"Starting multimodal search for query: {query}")
@@ -99,11 +108,17 @@ async def search_multimodal(query: str, limit: int = 30, alpha: float = 0.6):
             .do
         )
         
-        results = response['data']['Get'][COLLECTION_NAME]
-        logger.info(f"Search completed. Found {len(results)} results.")
-        return results
+        if response and 'data' in response and 'Get' in response['data']:
+            results = response['data']['Get'][COLLECTION_NAME]
+            logger.info(f"Search completed. Found {len(results)} results.")
+            return results
+        else:
+            logger.error("Invalid response format from Weaviate")
+            return []
+            
     except Exception as e:
         logger.error(f"Error in search_multimodal: {str(e)}", exc_info=True)
+        return []
 
 async def generate_response_stream(query: str, context: str):
     prompt = f"""You are an advanced AI assistant specializing in technology and communications, with a focus on MaxLinear's products and Wi-Fi technology. Your task is to provide accurate, comprehensive, and insightful answers to queries based on the provided information and your general knowledge.
@@ -166,14 +181,14 @@ Sources:
 IMPORTANT NOTE: Only provide sources if it is referenced or mentioned in the response. Also dont repeat the same source again and again.
 """
 
-    async for chunk in await openai_client.chat.completions.create(
-        model="gpt-4o",
+    async for chunk in await groq_client.chat.completions.create(
+        model="mixtral-8x7b-32768",
         messages=[
             {"role": "system", "content": "You are an expert Semi Conductor industry analyst"},
             {"role": "user", "content": prompt}
         ],
         temperature=0,
-        max_tokens=500,
+        max_tokens=1024,
         stream=True
     ):
         content = chunk.choices[0].delta.content
@@ -195,8 +210,8 @@ async def generate_follow_up_questions(answer):
     Based on the following response, generate exactly 2 follow-up questions:\n\n{answer}\n\nFollow-up questions:
     """
 
-    response = await openai_client.chat.completions.create(
-        model="gpt-4o-mini",
+    response = await groq_client.chat.completions.create(
+        model="mixtral-8x7b-32768",
         messages=[
             {"role": "system", "content": "You are a helpful assistant generating follow-up questions."},
             {"role": "user", "content": prompt}

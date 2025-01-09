@@ -6,3 +6,4 @@ aiohttp
 anthropic
 flask[async]
 anthropic
+sentence-transformers

@@ -12,7 +12,8 @@ from unstructured.documents.elements import NarrativeText, Table, Image as Unstr
 from weaviate.util import generate_uuid5
 import nltk
 import logging
-
+from sentence_transformers import SentenceTransformer
+import torch
 import weaviate.classes.config as wc
 
 # Set up logging
@@ -26,18 +27,23 @@ nltk.download('punkt', quiet=True)
 
 # Set up environment variables and API keys
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
 WCS_URL = os.getenv('WCS_URL')
 WCS_API_KEY = os.getenv('WCS_API_KEY')
 
 # Initialize clients
 openai_client = AsyncOpenAI()
+groq_client = AsyncOpenAI(
+    base_url="https://api.groq.com/openai/v1",
+    api_key=GROQ_API_KEY
+)
 anthropic_client = anthropic.Anthropic()
 weaviate_client = weaviate.connect_to_wcs(
     cluster_url=WCS_URL,
-    auth_credentials=weaviate.auth.AuthApiKey(WCS_API_KEY),
-    headers={"X-OpenAI-Api-Key": OPENAI_API_KEY}
+    auth_credentials=weaviate.auth.AuthApiKey(WCS_API_KEY)#,    headers={"X-OpenAI-Api-Key": OPENAI_API_KEY}
 )
+embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
 
 def load_prompt(file_path):
     with open(file_path, 'r') as file:
@@ -47,12 +53,23 @@ def encode_image(image_path):
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode('utf-8')
 
+# async def get_embedding(text):
+#     response = await openai_client.embeddings.create(
+#         input=text,
+#         model="text-embedding-3-large"
+#     )
+#     return response.data[0].embedding
 async def get_embedding(text):
-    response = await openai_client.embeddings.create(
-        input=text,
-        model="text-embedding-3-large"
-    )
-    return response.data[0].embedding
+    """Generate embeddings using sentence-transformers"""
+    try:
+        # Run the embedding generation in a thread pool to not block
+        embedding = await asyncio.to_thread(
+            lambda: embedding_model.encode(text, convert_to_tensor=True).tolist()
+        )
+        return embedding
+    except Exception as e:
+        logging.error(f"Error generating embedding: {str(e)}")
+        raise
 
 async def summarize_image(img_base64, prompt):
     message = anthropic_client.messages.create(
@@ -193,7 +210,7 @@ async def main(pdf_dir, output_dir, collection_name, prompt_file):
                 {"name": "embedding", "data_type": wc.DataType.TEXT},
                 {"name": "image", "data_type": wc.DataType.BLOB},
                 {"name": "image_embedding", "data_type": wc.DataType.TEXT},
-                {"name": "metadata", "data_type": wc.DataType.TEXT}
+                {"name": "metadata", "data_type": wc.DataType.TEXT }
             ]
         )
     else:
@@ -207,7 +224,7 @@ async def main(pdf_dir, output_dir, collection_name, prompt_file):
 if __name__ == "__main__":
     pdf_dir = "./maxlinear/News_Releases" # Directory containing the PDFs to be processed
     output_dir = "./data/images"
-    collection_name = "RAGESGDocuments3"
+    collection_name = "maxlinear"
     # prompt_file = "./image_prompt.txt"
     prompt_file = "./image_prompt_maxlinear.txt"
     asyncio.run(main(pdf_dir, output_dir, collection_name, prompt_file))
